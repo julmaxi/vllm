@@ -1106,6 +1106,8 @@ class GPUModelRunnerBase(ModelRunnerBase[TModelInputForGPU]):
                     max_position_embeddings,
                 )
                 self.model = self.lora_manager.create_lora_manager(self.model)
+            from vllm.steering import SteeringWrapperModel
+            self.model = SteeringWrapperModel.apply(self.model)
             time_after_load = time.perf_counter()
 
         self.model_memory_usage = m.consumed_memory
