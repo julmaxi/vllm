@@ -221,6 +221,7 @@ class OpenAIServingCompletion(OpenAIServing):
                         lora_request=lora_request,
                         trace_headers=trace_headers,
                         priority=request.priority,
+                        steering_weight=request.steering_weight,
                     )
 
                 generators.append(generator)

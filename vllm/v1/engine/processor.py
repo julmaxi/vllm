@@ -230,6 +230,7 @@ class Processor:
         tokenization_kwargs: Optional[dict[str, Any]] = None,
         trace_headers: Optional[Mapping[str, str]] = None,
         priority: int = 0,
+        steering_weight: Optional[float] = None,
         data_parallel_rank: Optional[int] = None,
     ) -> tuple[Optional[str], EngineCoreRequest]:
 
@@ -344,6 +345,7 @@ class Processor:
             lora_request=lora_request,
             cache_salt=decoder_inputs.get("cache_salt"),
             priority=priority,
+            steering_weight=steering_weight,
             data_parallel_rank=data_parallel_rank,
         )
 

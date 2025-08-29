@@ -55,6 +55,7 @@ class EngineClient(ABC):
         lora_request: Optional[LoRARequest] = None,
         trace_headers: Optional[Mapping[str, str]] = None,
         priority: int = 0,
+        steering_weight: Optional[float] = None,
     ) -> AsyncGenerator[RequestOutput, None]:
         """Generate outputs for a request."""
         ...

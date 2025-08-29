@@ -1601,7 +1601,8 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
         cudagraph_runtime_mode, batch_descriptor = \
             self.cudagraph_dispatcher.dispatch(batch_descriptor)
 
-        steering_weights = self.steering_weights[:num_input_tokens]
+        # Extract steering weights from scheduler output
+        steering_weights = self._extract_steering_weights(scheduler_output, num_input_tokens)
         # Run the model.
         # Use persistent buffers for CUDA graphs.
         with set_forward_context(
@@ -1997,11 +1998,18 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                                                   self.scheduler_config,
                                                   self.lora_config,
                                                   self.device)
-            with open("story_emails_no_summitbridge_bmw--layer_21.pt", "rb") as f:
-                logger.warning(f"DEBUG: Loading steering vector from {f}")
-                steering_vector = torch.load(f)
-                logger.warning(f"DEBUG: Steering vector for {type(self.model)}")
-                self.model.set_steering_vector(steering_vector, 21)
+            if self.model_config.steering_vector and self.model_config.steering_layer is not None:
+                with open(self.model_config.steering_vector, "rb") as f:
+                    logger.info(f"Loading steering vector from {self.model_config.steering_vector}")
+                    steering_vector = torch.load(f)
+                    logger.info(f"Applying steering vector to layer {self.model_config.steering_layer}")
+                    self.model.set_steering_vector(steering_vector, self.model_config.steering_layer)
+            elif self.model_config.steering_vector and not self.model_config.steering_layer:
+                raise ValueError("Steering layer is required when steering vector is provided")
+            elif not self.model_config.steering_vector and self.model_config.steering_layer:
+                raise ValueError("Steering vector is required when steering layer is provided")
+            elif not self.model_config.steering_vector and not self.model_config.steering_layer:
+                logger.info("No steering vector or layer provided, skipping steering vector application")
 
             if hasattr(self, "drafter"):
                 logger.info("Loading drafter model...")
@@ -3363,3 +3371,43 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                 group_metadata[layer_name] = (common_metadata, metadata)
 
         return group_metadata
+
+    def _extract_steering_weights(
+        self, 
+        scheduler_output: "SchedulerOutput", 
+        num_input_tokens: int
+    ) -> torch.Tensor:
+        """Extract steering weights from scheduler output and update the existing tensor.
+        
+        Args:
+            scheduler_output: The scheduler output containing steering weights
+            num_input_tokens: Number of input tokens to process
+            
+        Returns:
+            torch.Tensor: Reference to the existing steering weights tensor with updated values
+        """
+        # Reset the existing steering weights tensor to zeros (default behavior)
+        self.steering_weights[:num_input_tokens].zero_()
+        
+        # If no steering weights are provided, return the zeroed tensor
+        if not hasattr(scheduler_output, 'steering_weights') or not scheduler_output.steering_weights:
+            return self.steering_weights[:num_input_tokens]
+        
+        # Get request IDs and their token counts
+        req_ids = self.input_batch.req_ids
+        req_id_to_index = self.input_batch.req_id_to_index
+        
+        # Apply steering weights per request by updating the existing tensor
+        for req_id in req_ids:
+            if req_id in scheduler_output.steering_weights:
+                steering_weight = scheduler_output.steering_weights[req_id]
+                if steering_weight is not None:
+                    # Find the token range for this request
+                    req_index = req_id_to_index[req_id]
+                    start_token = self.query_start_loc[req_index]
+                    end_token = self.query_start_loc[req_index + 1]
+                    
+                    # Update the existing tensor in-place
+                    self.steering_weights[start_token:end_token].fill_(steering_weight)
+        
+        return self.steering_weights[:num_input_tokens]

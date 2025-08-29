@@ -558,6 +558,13 @@ class Scheduler(SchedulerInterface):
             scheduled_spec_decode_tokens,
             req_to_new_block_ids,
         )
+        # Build steering weights mapping
+        steering_weights = {}
+        for req in scheduled_new_reqs:
+            steering_weights[req.request_id] = req.steering_weight
+        for req in itertools.chain(scheduled_running_reqs, scheduled_resumed_reqs):
+            steering_weights[req.request_id] = req.steering_weight
+
         scheduler_output = SchedulerOutput(
             scheduled_new_reqs=new_reqs_data,
             scheduled_cached_reqs=cached_reqs_data,
@@ -574,6 +581,7 @@ class Scheduler(SchedulerInterface):
             free_encoder_input_ids=self.encoder_cache_manager.get_freed_ids(),
             structured_output_request_ids=structured_output_request_ids,
             grammar_bitmask=grammar_bitmask,
+            steering_weights=steering_weights,
         )
 
         # NOTE(Kuntai): this function is designed for multiple purposes:

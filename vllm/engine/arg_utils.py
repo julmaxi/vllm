@@ -439,6 +439,8 @@ class EngineArgs:
     logits_processors: Optional[list[Union[
         str, type[LogitsProcessor]]]] = ModelConfig.logits_processors
     """Custom logitproc types"""
+    steering_vector: Optional[str] = ModelConfig.steering_vector
+    steering_layer: Optional[int] = ModelConfig.steering_layer
 
     async_scheduling: bool = SchedulerConfig.async_scheduling
     # DEPRECATED
@@ -556,6 +558,10 @@ class EngineArgs:
                                  **model_kwargs["override_attention_dtype"])
         model_group.add_argument("--logits-processors",
                                  **model_kwargs["logits_processors"])
+        model_group.add_argument("--steering-vector",
+                                 **model_kwargs["steering_vector"])
+        model_group.add_argument("--steering-layer",
+                                 **model_kwargs["steering_layer"])
 
         # Model loading arguments
         load_kwargs = get_kwargs(LoadConfig)
@@ -948,6 +954,8 @@ class EngineArgs:
             model_impl=self.model_impl,
             override_attention_dtype=self.override_attention_dtype,
             logits_processors=self.logits_processors,
+            steering_vector=self.steering_vector,
+            steering_layer=self.steering_layer,
         )
 
     def validate_tensorizer_args(self):

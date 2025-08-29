@@ -97,6 +97,27 @@ def test_auto_task(model_id, expected_runner_type, expected_convert_type,
     assert expected_task in config.supported_tasks
 
 
+def test_steering_config():
+    """Test that steering_vector and steering_layer fields work correctly."""
+    # Test default values
+    config = ModelConfig()
+    assert config.steering_vector is None
+    assert config.steering_layer is None
+    
+    # Test setting values
+    config = ModelConfig(
+        steering_vector="/path/to/steering.pt",
+        steering_layer=21
+    )
+    assert config.steering_vector == "/path/to/steering.pt"
+    assert config.steering_layer == 21
+    
+    # Test setting only one value
+    config = ModelConfig(steering_vector="/path/to/steering.pt")
+    assert config.steering_vector == "/path/to/steering.pt"
+    assert config.steering_layer is None
+
+
 # Can remove once --task option is fully deprecated
 @pytest.mark.parametrize(
     ("model_id", "expected_runner_type", "expected_convert_type",

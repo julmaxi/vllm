@@ -88,6 +88,7 @@ def _schedule_new_request(*req_ids: str) -> SchedulerOutput:
         free_encoder_input_ids=[],
         structured_output_request_ids={},
         grammar_bitmask=None,
+        steering_weights={},
     )
 
 

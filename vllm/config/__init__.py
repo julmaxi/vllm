@@ -470,6 +470,13 @@ class ModelConfig:
     logits_processors: Optional[list[Union[str, type[LogitsProcessor]]]] = None
     """One or more logits processors' fully-qualified class names or class
     definitions"""
+    steering_vector: Optional[str] = None
+    """Path to the steering vector file (.pt format) to load and apply to the model.
+    If specified, the steering vector will be loaded from this file and applied
+    to the layer specified by steering_layer."""
+    steering_layer: Optional[int] = None
+    """The layer index where the steering vector should be applied.
+    Only used when steering_vector is specified."""
 
     def compute_hash(self) -> str:
         """
