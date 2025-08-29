@@ -313,11 +313,14 @@ class Gemma3DecoderLayer(nn.Module):
         self.post_feedforward_layernorm = GemmaRMSNorm(config.hidden_size,
                                                        eps=config.rms_norm_eps)
 
+        self.register_buffer('steering_vector', torch.zeros(config.hidden_size)) #nn.Parameter(torch.randn(self.hidden_size) * 10000.0)
+
     def forward(
         self,
         positions: torch.Tensor,
         hidden_states: torch.Tensor,
         residual: Optional[torch.Tensor],
+        steering_weights: torch.Tensor,
         **kwargs,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         if residual is None:
@@ -337,6 +340,10 @@ class Gemma3DecoderLayer(nn.Module):
             hidden_states, residual)
         hidden_states = self.mlp(hidden_states)
         hidden_states = self.post_feedforward_layernorm(hidden_states)
+
+        steering_vec = steering_weights[:,None].to(hidden_states) * self.steering_vector[None,:].to(hidden_states)
+        hidden_states = hidden_states + steering_vec
+
         return hidden_states, residual
 
 
@@ -386,6 +393,7 @@ class Gemma3Model(nn.Module):
         positions: torch.Tensor,
         intermediate_tensors: Optional[IntermediateTensors],
         inputs_embeds: Optional[torch.Tensor] = None,
+        steering_weights: Optional[torch.Tensor] = None,
         **kwargs,
     ) -> Union[torch.Tensor, IntermediateTensors]:
         if get_pp_group().is_first_rank:
@@ -403,6 +411,7 @@ class Gemma3Model(nn.Module):
                 positions,
                 hidden_states,
                 residual,
+                steering_weights=steering_weights,
                 **kwargs,
             )
         if not get_pp_group().is_last_rank:

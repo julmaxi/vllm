@@ -494,6 +494,9 @@ class Gemma3ForConditionalGeneration(nn.Module, SupportsMultiModal, SupportsPP,
 
         raise ValueError("Only image modality is supported")
 
+    def set_steering_vector(self, steering_vector: torch.Tensor, layer_idx: int):
+        self.language_model.model.layers[layer_idx].steering_vector[:] = steering_vector
+
     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
         super().__init__()
         config = vllm_config.model_config.hf_config

@@ -256,6 +256,10 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
         self.slot_mapping = torch.zeros(self.max_num_tokens,
                                         dtype=torch.int64,
                                         device=self.device)
+        
+        self.steering_weights = torch.zeros(self.max_num_tokens,
+                                            dtype=torch.float16,
+                                            device=self.device)
 
         # None in the first PP rank. The rest are set after load_model.
         self.intermediate_tensors: Optional[IntermediateTensors] = None
@@ -1597,6 +1601,7 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
         cudagraph_runtime_mode, batch_descriptor = \
             self.cudagraph_dispatcher.dispatch(batch_descriptor)
 
+        steering_weights = self.steering_weights[:num_input_tokens]
         # Run the model.
         # Use persistent buffers for CUDA graphs.
         with set_forward_context(
@@ -1613,6 +1618,7 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                 positions=positions,
                 intermediate_tensors=intermediate_tensors,
                 inputs_embeds=inputs_embeds,
+                steering_weights=steering_weights,
                 **model_kwargs,
             )
 
@@ -1991,6 +1997,12 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                                                   self.scheduler_config,
                                                   self.lora_config,
                                                   self.device)
+            with open("story_emails_no_summitbridge_bmw--layer_21.pt", "rb") as f:
+                logger.warning(f"DEBUG: Loading steering vector from {f}")
+                steering_vector = torch.load(f)
+                logger.warning(f"DEBUG: Steering vector for {type(self.model)}")
+                self.model.set_steering_vector(steering_vector, 21)
+
             if hasattr(self, "drafter"):
                 logger.info("Loading drafter model...")
                 self.drafter.load_model(self.model)
@@ -2360,6 +2372,8 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
             else:
                 positions = self.positions[:num_tokens]
 
+            steering_weights = self.steering_weights[:num_tokens]
+
             if get_pp_group().is_first_rank:
                 intermediate_tensors = None
             else:
@@ -2397,6 +2411,7 @@ class GPUModelRunner(LoRAModelRunnerMixin, KVConnectorModelRunnerMixin):
                     positions=positions,
                     intermediate_tensors=intermediate_tensors,
                     inputs_embeds=inputs_embeds,
+                    steering_weights=steering_weights,
                     **model_kwargs,
                 )
 
